@@ -102,7 +102,8 @@ public:
 
     Eigen::MatrixXd Q_;
 
-    Eigen::MatrixXd R_;
+    Eigen::MatrixXd R_radar_;
+    Eigen::MatrixXd R_lidar_;
 };
 
 #endif  // UKF_H

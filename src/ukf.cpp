@@ -86,10 +86,14 @@ UKF::UKF()
 
     Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
-    R_ = MatrixXd(3, 3);
-    R_ << std_radr_ * std_radr_, 0.0, 0.0,
+    R_radar_ = MatrixXd(3, 3);
+    R_radar_ << std_radr_ * std_radr_, 0.0, 0.0,
             0.0, std_radphi_ * std_radphi_, 0.0,
             0.0, 0.0, std_radrd_ * std_radrd_;
+
+    R_lidar_ = MatrixXd(2, 2);
+    R_lidar_ << std_laspx_ * std_laspx_, 0,
+            0, std_laspy_ * std_laspy_;
 }
 
 UKF::~UKF()
@@ -239,6 +243,65 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
      * covariance, P_.
      * You can also calculate the lidar NIS, if desired.
      */
+    int n_z = 2;
+
+    // create matrix for sigma points in measurement space
+    MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+    // mean predicted measurement
+    VectorXd z_pred = VectorXd(n_z);
+    z_pred.fill(0);
+
+    // measurement covariance matrix S
+    MatrixXd S = MatrixXd(n_z, n_z);
+    S.fill(0);
+
+    // Transform sigma points to meas space
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        double p_x = Xsig_pred_(0, i);
+        double p_y = Xsig_pred_(1, i);
+
+        Zsig(0, i) = p_x;
+        Zsig(1, i) = p_y;
+
+        z_pred = z_pred + weights_(i) * Zsig.col(i);
+    }
+
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        VectorXd diff = Zsig.col(i) - z_pred;
+        S = S + weights_(i) * diff * diff.transpose();
+    }
+
+    S = S + R_lidar_;
+
+    // create matrix for cross correlation Tc
+    MatrixXd Tc = MatrixXd(n_x_, n_z);
+    Tc.fill(0);
+
+    // calculate cross correlation matrix
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+        VectorXd z_diff = Zsig.col(i) - z_pred;
+
+        Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+    }
+
+    //measurement matrix
+    VectorXd z = VectorXd(n_z);
+    z(0) = meas_package.raw_measurements_(0);
+    z(1) = meas_package.raw_measurements_(1);
+
+    // calculate Kalman gain K;
+    MatrixXd K = Tc * S.inverse();
+
+    // update state mean and covariance matrix
+    VectorXd z_diff = z - z_pred;
+
+    x_ = x_ + K * z_diff;
+    P_ = P_ - K * S * K.transpose();
 }
 
 void UKF::UpdateRadar(MeasurementPackage meas_package)
@@ -296,7 +359,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
         S = S + weights_(i) * diff * diff.transpose();
     }
 
-    S = S + R_;
+    S = S + R_radar_;
 
     // create matrix for cross correlation Tc
     MatrixXd Tc = MatrixXd(n_x_, n_z);
