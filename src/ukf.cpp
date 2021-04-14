@@ -32,10 +32,10 @@ UKF::UKF()
             0.0, 0.0, 0.0, 0.0, 1.0;
 
     // Process noise standard deviation longitudinal acceleration in m/s^2
-    std_a_ = 30;
+    std_a_ = 0.6;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    std_yawdd_ = 30;
+    std_yawdd_ = 0.6;
 
     /**
      * DO NOT MODIFY measurement noise values below.
@@ -85,6 +85,11 @@ UKF::UKF()
             0.0, std_yawdd_ * std_yawdd_;
 
     Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
+    R_ = MatrixXd(3, 3);
+    R_ << std_radr_ * std_radr_, 0.0, 0.0,
+            0.0, std_radphi_ * std_radphi_, 0.0,
+            0.0, 0.0, std_radrd_ * std_radrd_;
 }
 
 UKF::~UKF()
@@ -244,6 +249,97 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
      * covariance, P_.
      * You can also calculate the radar NIS, if desired.
      */
+    int n_z = 3;
+
+    // create matrix for sigma points in measurement space
+    MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+    // mean predicted measurement
+    VectorXd z_pred = VectorXd(n_z);
+    z_pred.fill(0);
+
+    // measurement covariance matrix S
+    MatrixXd S = MatrixXd(n_z, n_z);
+    S.fill(0);
+
+    // Transform sigma points to meas space
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        double p_x = Xsig_pred_(0, i);
+        double p_y = Xsig_pred_(1, i);
+        double v = Xsig_pred_(2, i);
+        double yaw = Xsig_pred_(3, i);
+
+        double rho = sqrt((p_x * p_x) + (p_y * p_y));
+        double phi = atan2(p_y, p_x);
+        double phid = (p_x * cos(yaw) * v + p_y * sin(yaw) * v) / rho;
+
+        Zsig(0, i) = rho;
+        Zsig(1, i) = phi;
+        Zsig(2, i) = phid;
+    }
+
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        z_pred = z_pred + weights_(i) * Zsig.col(i);
+    }
+
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        VectorXd diff = Zsig.col(i) - z_pred;
+
+        while (diff(1) > M_PI)
+        { diff(1) -= 2.0 * M_PI; }
+        while (diff(1) < -M_PI)
+        { diff(1) += 2.0 * M_PI; }
+
+        S = S + weights_(i) * diff * diff.transpose();
+    }
+
+    S = S + R_;
+
+    // create matrix for cross correlation Tc
+    MatrixXd Tc = MatrixXd(n_x_, n_z);
+    Tc.fill(0);
+
+    // calculate cross correlation matrix
+    for (int i = 0; i < 2 * n_aug_ + 1; i++)
+    {
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+        VectorXd z_diff = Zsig.col(i) - z_pred;
+
+        while (x_diff(3) > M_PI)
+        { x_diff(3) -= M_PI; }
+        while (x_diff(3) < -M_PI)
+        { x_diff(3) += M_PI; }
+
+        while (z_diff(1) > M_PI)
+        { z_diff(1) -= M_PI; }
+        while (z_diff(1) < -M_PI)
+        { z_diff(1) += M_PI; }
+
+        Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+    }
+
+    //measurement matrix
+    VectorXd z = VectorXd(n_z);
+    z(0) = meas_package.raw_measurements_(0);
+    z(1) = meas_package.raw_measurements_(1);
+    z(2) = meas_package.raw_measurements_(2);
+
+    // calculate Kalman gain K;
+    MatrixXd K = Tc * S.inverse();
+
+    // update state mean and covariance matrix
+    VectorXd z_diff = z - z_pred;
+
+    while (z_diff(1) > M_PI)
+    { z_diff(1) -= M_PI; }
+    while (z_diff(1) < -M_PI)
+    { z_diff(1) += M_PI; }
+
+    x_ = x_ + K * z_diff;
+    P_ = P_ - K * S * K.transpose();
 }
 
 void UKF::InitUKF(const MeasurementPackage &meas_package)

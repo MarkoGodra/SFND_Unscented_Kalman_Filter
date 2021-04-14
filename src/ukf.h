@@ -101,6 +101,8 @@ public:
     double lambda_;
 
     Eigen::MatrixXd Q_;
+
+    Eigen::MatrixXd R_;
 };
 
 #endif  // UKF_H
