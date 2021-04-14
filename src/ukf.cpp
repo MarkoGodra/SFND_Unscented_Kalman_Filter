@@ -96,6 +96,11 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
     else
     {
         // Regular flow from assignments
+        double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;
+        time_us_ = meas_package.timestamp_;
+
+        Prediction(delta_t);
+        Update(meas_package);
     }
 }
 
@@ -157,4 +162,16 @@ void UKF::InitUKF(const MeasurementPackage &meas_package)
 
     time_us_ = meas_package.timestamp_;
     is_initialized_ = true;
+}
+
+void UKF::Update(const MeasurementPackage &meas_package)
+{
+    if (meas_package.sensor_type_ == MeasurementPackage::SensorType::LASER)
+    {
+        UpdateLidar(meas_package);
+    }
+    else
+    {
+        UpdateRadar(meas_package);
+    }
 }

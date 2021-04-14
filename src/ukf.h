@@ -43,6 +43,7 @@ public:
     void UpdateRadar(MeasurementPackage meas_package);
 
     void InitUKF(const MeasurementPackage &meas_package);
+    void Update(const MeasurementPackage& meas_package);
 
 
     // initially set to false, set to true in first call of ProcessMeasurement
