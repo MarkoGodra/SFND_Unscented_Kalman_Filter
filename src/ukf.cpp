@@ -14,11 +14,19 @@ UKF::UKF() {
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
 
+  n_x_ = 5;
+
   // initial state vector
-  x_ = VectorXd(5);
+  x_ = VectorXd(n_x_);
+  x_ << 0.0, 0.0, 0.0, 0.0, 0.0;
 
   // initial covariance matrix
-  P_ = MatrixXd(5, 5);
+  P_ = MatrixXd(n_x_, n_x_);
+  P_ << 1.0, 0.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 0.0, 1.0;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 30;
@@ -54,6 +62,20 @@ UKF::UKF() {
    * TODO: Complete the initialization. See ukf.h for other member properties.
    * Hint: one or more values initialized above might be wildly off...
    */
+
+    time_us_ = 0.0;
+
+    is_initialized_ = false;
+    n_aug_ = n_x_ + 2;
+    lambda_ = 3 - n_aug_;
+
+    weights_ = VectorXd(2 * n_aug_ + 1);
+    weights_(0) = lambda_ / (lambda_ + n_aug_);
+    for(int  i = 0; i < 2 * n_aug_; i++)
+    {
+        double weight = 0.5 / (lambda_ + n_aug_);
+        weights_(i + 1) = weight;
+    }
 }
 
 UKF::~UKF() {}
