@@ -220,10 +220,7 @@ void UKF::Prediction(double delta_t)
         // state difference
         VectorXd x_diff = Xsig_pred_.col(i) - x;
         // angle normalization
-        while (x_diff(3) > M_PI)
-        { x_diff(3) -= 2. * M_PI; }
-        while (x_diff(3) < -M_PI)
-        { x_diff(3) += 2. * M_PI; }
+        NormalizeAngle(x_diff(3));
 
         P = P + weights_(i) * x_diff * x_diff.transpose();
     }
@@ -340,21 +337,14 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
         Zsig(0, i) = rho;
         Zsig(1, i) = phi;
         Zsig(2, i) = phid;
-    }
 
-    for (int i = 0; i < 2 * n_aug_ + 1; i++)
-    {
         z_pred = z_pred + weights_(i) * Zsig.col(i);
     }
 
     for (int i = 0; i < 2 * n_aug_ + 1; i++)
     {
         VectorXd diff = Zsig.col(i) - z_pred;
-
-        while (diff(1) > M_PI)
-        { diff(1) -= 2.0 * M_PI; }
-        while (diff(1) < -M_PI)
-        { diff(1) += 2.0 * M_PI; }
+        NormalizeAngle(diff(1));
 
         S = S + weights_(i) * diff * diff.transpose();
     }
@@ -370,16 +360,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
     {
         VectorXd x_diff = Xsig_pred_.col(i) - x_;
         VectorXd z_diff = Zsig.col(i) - z_pred;
-
-        while (x_diff(3) > M_PI)
-        { x_diff(3) -= M_PI; }
-        while (x_diff(3) < -M_PI)
-        { x_diff(3) += M_PI; }
-
-        while (z_diff(1) > M_PI)
-        { z_diff(1) -= M_PI; }
-        while (z_diff(1) < -M_PI)
-        { z_diff(1) += M_PI; }
+        NormalizeAngle(x_diff(3));
+        NormalizeAngle(z_diff(1));
 
         Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
     }
@@ -396,10 +378,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
     // update state mean and covariance matrix
     VectorXd z_diff = z - z_pred;
 
-    while (z_diff(1) > M_PI)
-    { z_diff(1) -= M_PI; }
-    while (z_diff(1) < -M_PI)
-    { z_diff(1) += M_PI; }
+    NormalizeAngle(z_diff(1));
 
     x_ = x_ + K * z_diff;
     P_ = P_ - K * S * K.transpose();
@@ -449,4 +428,12 @@ void UKF::Update(const MeasurementPackage &meas_package)
     {
         UpdateRadar(meas_package);
     }
+}
+
+void UKF::NormalizeAngle(double &val)
+{
+    while (val > M_PI)
+    { val -= M_PI; }
+    while (val < -M_PI)
+    { val += M_PI; }
 }
