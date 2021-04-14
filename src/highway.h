@@ -147,6 +147,9 @@ public:
                 estimate << traffic[i].ukf.x_[0], traffic[i].ukf.x_[1], v1, v2;
                 tools.estimations.push_back(estimate);
 
+                std::cout << "t=" << traffic[i].ukf.time_us_ << " lnis: " << traffic[i].ukf.NIS_lidar_ << " rnis"
+                          << traffic[i].ukf.NIS_radar_ << std::endl;
+
             }
         }
         viewer->addText("Accuracy - RMSE:", 30, 300, 20, 1, 1, 1, "rmse");

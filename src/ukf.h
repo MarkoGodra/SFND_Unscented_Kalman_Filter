@@ -46,6 +46,7 @@ public:
     void Update(const MeasurementPackage& meas_package);
 
     void NormalizeAngle(double& val);
+    double NIS(const Eigen::VectorXd& z_diff, const Eigen::MatrixXd& S);
 
 
     // initially set to false, set to true in first call of ProcessMeasurement
@@ -106,6 +107,9 @@ public:
 
     Eigen::MatrixXd R_radar_;
     Eigen::MatrixXd R_lidar_;
+
+    double NIS_radar_;
+    double NIS_lidar_;
 };
 
 #endif  // UKF_H

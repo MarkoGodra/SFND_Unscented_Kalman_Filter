@@ -21,21 +21,21 @@ UKF::UKF()
 
     // initial state vector
     x_ = VectorXd(n_x_);
-    x_ << 0.2, 0.2, 0.2, 0.2, 0.02;
+    x_ << 0.2, 0.2, 0.2, 0.2, 0.02; // No zeros here
 
     // initial covariance matrix
     P_ = MatrixXd(n_x_, n_x_);
-    P_ << 1.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0, 0.0,
+    P_ << std_laspx_, 0.0, 0.0, 0.0, 0.0,
+            0.0, std_laspy_, 0.0, 0.0, 0.0,
             0.0, 0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 1.0;
+            0.0, 0.0, 0.0, std_radphi_, 0.0,
+            0.0, 0.0, 0.0, 0.0, std_radrd_;
 
     // Process noise standard deviation longitudinal acceleration in m/s^2
-    std_a_ = 0.6;
+    std_a_ = 0.65;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    std_yawdd_ = 0.6;
+    std_yawdd_ = 0.65;
 
     /**
      * DO NOT MODIFY measurement noise values below.
@@ -94,6 +94,9 @@ UKF::UKF()
     R_lidar_ = MatrixXd(2, 2);
     R_lidar_ << std_laspx_ * std_laspx_, 0,
             0, std_laspy_ * std_laspy_;
+
+    NIS_lidar_ = 0.0;
+    NIS_radar_ = 0.0;
 }
 
 UKF::~UKF()
@@ -116,7 +119,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
         double delta_t = double(meas_package.timestamp_ - time_us_) / 1000000.0;
         time_us_ = meas_package.timestamp_;
 
-        std::cout << "Delta t: " << delta_t << std::endl;
+//        std::cout << "Delta t: " << delta_t << std::endl;
         Prediction(delta_t);
         Update(meas_package);
     }
@@ -224,8 +227,8 @@ void UKF::Prediction(double delta_t)
 
         P = P + weights_(i) * x_diff * x_diff.transpose();
     }
-    std::cout << "x_: " << std::endl << x << std::endl;
-    std::cout << "P_: " << std::endl << P << std::endl;
+//    std::cout << "x_: " << std::endl << x << std::endl;
+//    std::cout << "P_: " << std::endl << P << std::endl;
 
     // Update mean and covariance matrix
     x_ = x;
@@ -299,6 +302,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
 
     x_ = x_ + K * z_diff;
     P_ = P_ - K * S * K.transpose();
+
+    NIS_lidar_ = NIS(z_diff, S);
 }
 
 void UKF::UpdateRadar(MeasurementPackage meas_package)
@@ -382,6 +387,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
 
     x_ = x_ + K * z_diff;
     P_ = P_ - K * S * K.transpose();
+
+    NIS_radar_ = NIS(z_diff, S);
 }
 
 void UKF::InitUKF(const MeasurementPackage &meas_package)
@@ -430,10 +437,15 @@ void UKF::Update(const MeasurementPackage &meas_package)
     }
 }
 
-void UKF::NormalizeAngle(double &val)
+void UKF::NormalizeAngle(double& val)
 {
     while (val > M_PI)
     { val -= M_PI; }
     while (val < -M_PI)
     { val += M_PI; }
+}
+
+double UKF::NIS(const VectorXd& z_diff, const MatrixXd& S)
+{
+    return z_diff.transpose() * S.inverse() * z_diff;
 }
