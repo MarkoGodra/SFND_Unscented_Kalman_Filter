@@ -85,6 +85,15 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
    * TODO: Complete this function! Make sure you switch between lidar and radar
    * measurements.
    */
+
+  if(!is_initialized_)
+  {
+      InitUKF(meas_package);
+  }
+  else
+  {
+      // Regular flow from assignments
+  }
 }
 
 void UKF::Prediction(double delta_t) {
@@ -111,4 +120,35 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the radar NIS, if desired.
    */
+}
+
+void UKF::InitUKF(const MeasurementPackage &meas_package)
+{
+    // Initialize filter based on type of measurement
+    if(meas_package.sensor_type_ == MeasurementPackage::SensorType::LASER)
+    {
+        // Laser measurement
+        double px = meas_package.raw_measurements_[0];
+        double py = meas_package.raw_measurements_[1];
+        x_ << px, py, 0.0, 0.0, 0.0;
+    }
+    else
+    {
+        // Radar measurement
+        double rho = meas_package.raw_measurements_[0];
+        double phi = meas_package.raw_measurements_[1];
+        double rho_dot = meas_package.raw_measurements_[2];
+
+        double px = rho * cos(phi);
+        double py = rho * sin(phi);
+
+        double vx = rho_dot * cos(phi);
+        double vy = rho_dot * sin(phi);
+        double v = sqrt((vx * vx) + (vy * vy));
+
+        x_ << px, py, v, 0.0, 0.0;
+    }
+
+    time_us_ = meas_package.timestamp_;
+    is_initialized_ = true;
 }
