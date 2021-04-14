@@ -99,6 +99,8 @@ public:
 
     // Sigma point spreading parameter
     double lambda_;
+
+    Eigen::MatrixXd Q_;
 };
 
 #endif  // UKF_H
